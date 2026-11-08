@@ -1,0 +1,23 @@
+# Workspace-wide clippy policy. Crates that legitimately need sockets
+# (only kage-node) carry their own clippy.toml, which replaces this one.
+msrv = "1.97"
+doc-valid-idents = ["ZeroTrace", "FCMP", "CLSAG", "XChaCha20", "Argon2id", "RingCT", "RustCrypto", "DoS", "STRIDE", "Carrot", ".."]
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true
+allow-indexing-slicing-in-tests = true
+
+# No crate except kage-node may open network sockets (ADR-012, T-SIGN-NET).
+disallowed-types = [
+    { path = "std::net::TcpStream", reason = "networking is confined to kage-node" },
+    { path = "std::net::TcpListener", reason = "networking is confined to kage-node" },
+    { path = "std::net::UdpSocket", reason = "networking is confined to kage-node" },
+    { path = "std::os::unix::net::UnixStream", reason = "IPC sockets are not permitted outside kage-node" },
+    { path = "std::os::unix::net::UnixListener", reason = "IPC sockets are not permitted outside kage-node" },
+    { path = "std::os::unix::net::UnixDatagram", reason = "IPC sockets are not permitted outside kage-node" },
+]
+disallowed-methods = [
+    { path = "std::process::Command::new", reason = "spawning processes widens the attack surface; use an explicit, reviewed helper" },
+    { path = "std::env::set_var", reason = "unsound in multithreaded programs" },
+    { path = "std::mem::forget", reason = "may skip zeroization of secrets" },
+]

@@ -1,0 +1,20 @@
+[package]
+name = "kage-tui"
+description = "ZeroTrace terminal UI (ratatui + crossterm), Omarchy look and feel."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+kage-core.workspace = true
+kage-node.workspace = true
+kage-harden.workspace = true
+
+[[bin]]
+name = "zerotrace"
+path = "src/main.rs"
+
+[lints]
+workspace = true

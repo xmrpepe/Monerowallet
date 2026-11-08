@@ -1,0 +1,19 @@
+[package]
+name = "kage-core"
+description = "ZeroTrace view-only wallet logic: scanning, balances, subaddresses, unsigned tx construction."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+kage-airgap.workspace = true
+kage-sys.workspace = true
+kage-vault.workspace = true
+monero-wallet.workspace = true
+zeroize.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true

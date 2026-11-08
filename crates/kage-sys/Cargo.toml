@@ -1,0 +1,33 @@
+[package]
+name = "kage-sys"
+description = "ZeroTrace: the ONLY crate permitted to contain `unsafe` (locked secret memory). See AUDIT.md."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+rustix.workspace = true
+zeroize.workspace = true
+
+# NOTE: this crate deliberately does NOT use `[lints] workspace = true`,
+# because the workspace sets `unsafe_code = "forbid"`, which cannot be relaxed.
+# It mirrors the workspace lints with `unsafe_code = "deny"`; exactly one module
+# (`locked`) carries `#[allow(unsafe_code)]`. CI (scripts/check-policy.sh)
+# verifies that `unsafe` appears nowhere else in the workspace.
+[lints.rust]
+unsafe_code = "deny"
+unsafe_op_in_unsafe_fn = "deny"
+missing_docs = "deny"
+unused_must_use = "deny"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+undocumented_unsafe_blocks = "deny"
+multiple_unsafe_ops_per_block = "deny"
+unwrap_used = "deny"
+indexing_slicing = "deny"
+arithmetic_side_effects = "deny"
+mem_forget = "deny"

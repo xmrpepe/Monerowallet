@@ -1,0 +1,98 @@
+# Allowlist: every crate that may appear in kage-signer's dependency graph.
+# Enforced by scripts/check-signer-deps.sh (CI fails on anything not listed).
+# Format: <crate-name>  # category: justification
+# Before adding a crate, confirm it has no networking/async/IPC capability and
+# record the review in supply-chain/ (cargo vet).
+
+# --- ZeroTrace workspace crates (network-free by construction + CI source scan)
+kage-signer        # self
+kage-airgap        # envelope parsing
+kage-harden        # process hardening
+kage-sys           # locked memory (the only unsafe island)
+kage-vault         # encrypted storage
+
+# --- Monero protocol: monero-oxide (ADR-001). RPC is a trait only.
+monero-wallet      # protocol: scanning/signing API
+monero-oxide       # protocol: tx types
+monero-address     # protocol: addresses
+monero-base58      # protocol: address encoding
+monero-borromean   # protocol: legacy range proofs (verification)
+monero-bulletproofs            # protocol: range proofs
+monero-bulletproofs-generators # protocol: generators (build-time)
+monero-clsag       # protocol: ring signatures
+monero-ed25519     # protocol: curve wrappers (RUSTSEC-2026-0387 via crypto-bigint, ADR-010)
+monero-interface   # protocol: RPC *trait* (no transport)
+monero-io          # protocol: serialisation
+monero-mlsag       # protocol: legacy signatures (verification)
+monero-primitives  # protocol: shared primitives
+std-shims          # monero-oxide: std/no_std shims (no "net"; checked by feature scan)
+
+# --- Cryptography (RustCrypto / dalek)
+curve25519-dalek   # crypto
+curve25519-dalek-derive # crypto: proc-macro
+crypto-bigint      # crypto: used only in monero-ed25519::Point::biased_hash on public input (ADR-010)
+sha3               # crypto: Keccak
+keccak             # crypto
+blake2             # crypto: Argon2 internal hash
+argon2             # crypto: KDF (ADR-004)
+chacha20           # crypto
+chacha20poly1305   # crypto: AEAD
+poly1305           # crypto
+aead               # crypto: traits
+cipher             # crypto: traits
+universal-hash     # crypto: traits
+digest             # crypto: traits
+crypto-common      # crypto: traits
+block-buffer       # crypto: utility
+inout              # crypto: utility
+hybrid-array       # crypto: utility
+generic-array      # crypto: utility
+typenum            # crypto: utility
+subtle             # crypto: constant-time
+ctutils            # crypto: constant-time utilities
+cmov               # crypto: constant-time select
+zeroize            # secrets
+zeroize_derive     # secrets: proc-macro
+cpufeatures        # crypto: CPU feature detection
+base64ct           # crypto: constant-time base64 (password-hash encoding)
+
+# --- Randomness (ADR-011). monero-wallet takes the RNG from its caller
+#     (`CryptoRng`); ZeroTrace only ever passes the OS CSPRNG. monero-wallet also
+#     derives tx keys deterministically (ChaCha20Rng seeded by Keccak over the tx
+#     transcript); that is protocol design inside the audited library.
+getrandom          # rng: OS CSPRNG
+rand               # rng: used by monero-wallet
+rand_core          # rng: traits
+rand_chacha        # rng: used by monero-wallet
+rand_distr         # rng: decoy-selection gamma distribution
+ppv-lite86         # rng: rand_chacha SIMD
+
+# --- OS interface. libc/linux-raw-sys contain socket *declarations*; no
+#     signer-linked code calls them (source scan), and at runtime the signer is
+#     confined by an empty network namespace + seccomp (Stage 5).
+rustix             # os: mm/process/fs/param only ("net" feature banned)
+linux-raw-sys      # os
+libc               # os
+bitflags           # utility
+
+# --- General utilities / build-time
+thiserror          # errors
+thiserror-impl     # errors: proc-macro
+hex                # utility
+hex-literal        # utility
+hashbrown          # utility
+foldhash           # utility: hashing
+spin               # utility: no_std locks
+num-traits         # utility
+libm               # utility
+zerocopy           # utility
+cfg-if             # build
+autocfg            # build
+version_check      # build
+rustc_version      # build
+rustversion        # build: proc-macro
+semver             # build
+proc-macro2        # build: proc-macro
+quote              # build: proc-macro
+syn                # build: proc-macro
+unicode-ident      # build: proc-macro

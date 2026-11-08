@@ -1,0 +1,23 @@
+[package]
+name = "kage-vault"
+description = "ZeroTrace: versioned encrypted file format (Argon2id + XChaCha20-Poly1305) with atomic writes."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+kage-sys.workspace = true
+argon2.workspace = true
+chacha20poly1305.workspace = true
+getrandom.workspace = true
+zeroize.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+tempfile.workspace = true
+
+[lints]
+workspace = true

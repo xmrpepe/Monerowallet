@@ -1,0 +1,158 @@
+# ZeroTrace CI. Every third-party action is pinned to a full commit SHA.
+# Tools are installed by taiki-e/install-action, which verifies checksums.
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  schedule:
+    - cron: "17 3 * * *" # daily: new advisories must fail the build promptly
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  fmt-clippy-test:
+    name: fmt / clippy / test / doc
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pinned toolchain (rust-toolchain.toml)
+        run: rustup toolchain install  # installs the version pinned in rust-toolchain.toml
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - run: cargo test --workspace --locked
+      - name: Mainnet must not compile (ADR-002)
+        run: |
+          if cargo check -p kage-airgap --features mainnet --locked 2>/dev/null; then
+            echo "mainnet feature compiled; the ADR-002 gate is broken" >&2; exit 1
+          fi
+      - run: cargo doc --workspace --no-deps --locked
+        env:
+          RUSTDOCFLAGS: "-D warnings"
+
+  signer-runtime-policy:
+    name: signer runtime hardening (fail-closed)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install  # installs the version pinned in rust-toolchain.toml
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - run: cargo build --locked --bin kage-signer
+      - name: Signer refuses to run with unencrypted swap (ADR-008)
+        run: |
+          cat /proc/swaps
+          if [ "$(wc -l < /proc/swaps)" -le 1 ]; then
+            sudo fallocate -l 64M /swapfile-ci && sudo chmod 600 /swapfile-ci
+            sudo mkswap /swapfile-ci && sudo swapon /swapfile-ci
+          fi
+          set +e; ./target/debug/kage-signer; rc=$?; set -e
+          test "$rc" -eq 1 || { echo "expected refusal (1), got $rc" >&2; exit 1; }
+      - name: Signer starts once swap is off (exit 2 = hardened, signing not yet implemented)
+        run: |
+          sudo swapoff -a
+          # Same limit docs/INSTALL.md recommends; still an unprivileged run.
+          sudo prlimit --pid $$ --memlock=67108864:67108864
+          ulimit -l
+          set +e; ./target/debug/kage-signer; rc=$?; set -e
+          test "$rc" -eq 2 || { echo "expected 2, got $rc" >&2; exit 1; }
+      - name: Signer fails closed when memory cannot be locked
+        run: |
+          set +e; bash -c 'ulimit -l 512; exec ./target/debug/kage-signer'; rc=$?; set -e
+          test "$rc" -eq 1 || { echo "expected 1, got $rc" >&2; exit 1; }
+
+  supply-chain:
+    name: supply chain (deny / audit / vet / signer isolation / policy)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install  # installs the version pinned in rust-toolchain.toml
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        with:
+          tool: cargo-deny@0.20.2,cargo-audit@0.22.2,cargo-vet@0.10.3
+      - name: Source policy (unsafe confinement, RNG, logging, mainnet gate)
+        run: ./scripts/check-policy.sh
+      - name: Signer network isolation (allowlist + features + source)
+        run: ./scripts/check-signer-deps.sh
+      - name: cargo deny (workspace)
+        run: cargo deny --locked check
+      - name: cargo deny (signer denylist)
+        run: cargo deny --config crates/kage-signer/deny.toml --manifest-path crates/kage-signer/Cargo.toml --locked check bans
+      - name: cargo audit
+        run: cargo audit
+      - name: cargo vet
+        run: cargo vet --locked
+      - name: Guard self-test (injecting a networking crate must fail)
+        run: |
+          sed -i 's|^zeroize.workspace = true|zeroize.workspace = true\nkage-node.workspace = true|' crates/kage-signer/Cargo.toml
+          if SIGNER_GUARD_SELF_TEST=1 ./scripts/check-signer-deps.sh; then
+            echo "allowlist guard did not catch kage-node in the signer" >&2; exit 1
+          fi
+          if cargo deny --config crates/kage-signer/deny.toml --manifest-path crates/kage-signer/Cargo.toml check bans; then
+            echo "cargo-deny signer policy did not catch kage-node" >&2; exit 1
+          fi
+          git checkout -- crates/kage-signer/Cargo.toml Cargo.lock
+
+  fuzz:
+    name: fuzz (smoke, 60s per target)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install nightly-2026-11-01 --profile minimal
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        with:
+          tool: cargo-fuzz
+      - name: Run fuzz targets
+        working-directory: fuzz
+        env:
+          RUSTFLAGS: ""
+        run: |
+          for t in $(cargo +nightly-2026-11-01 fuzz list); do
+            cargo +nightly-2026-11-01 fuzz run "$t" -- -max_total_time=60 -rss_limit_mb=2048
+          done
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fuzz-artifacts
+          path: fuzz/artifacts/
+
+  reproducible:
+    name: reproducible release build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          path: build-a
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          path: elsewhere/build-b
+      - name: Build twice from different paths and compare
+        env:
+          RUSTFLAGS: ""
+        run: |
+          (cd build-a && rustup toolchain install && rustup target add x86_64-unknown-linux-musl && ./scripts/build-release.sh)
+          (cd elsewhere/build-b && ./scripts/build-release.sh)
+          diff build-a/dist/x86_64-unknown-linux-musl/SHA256SUMS elsewhere/build-b/dist/x86_64-unknown-linux-musl/SHA256SUMS
+          echo "Reproducible:"; cat build-a/dist/x86_64-unknown-linux-musl/SHA256SUMS

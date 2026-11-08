@@ -1,0 +1,48 @@
+# Release pipeline (docs/RELEASE.md).
+#
+# CI builds reproducibly and publishes a DRAFT release with SHA256SUMS plus a
+# Sigstore build-provenance attestation (keyless, GitHub OIDC). The minisign
+# signature is made OFFLINE by the maintainer after independently rebuilding
+# and matching SHA256SUMS. The signing key never touches CI.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write       # create the draft release
+      id-token: write       # Sigstore OIDC
+      attestations: write   # build provenance
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Toolchain
+        run: rustup toolchain install && rustup target add x86_64-unknown-linux-musl
+      - name: Full test suite before release
+        run: cargo test --workspace --locked
+      - name: Reproducible build
+        run: ./scripts/build-release.sh
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            dist/x86_64-unknown-linux-musl/kage-signer
+            dist/x86_64-unknown-linux-musl/zerotrace
+      - name: Draft release (unsigned; maintainer adds minisign signature offline)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$TAG" --draft --verify-tag \
+            --title "ZeroTrace $TAG" \
+            --notes "Draft. Do not use until SHA256SUMS.minisig is attached. See docs/RELEASE.md." \
+            dist/x86_64-unknown-linux-musl/kage-signer \
+            dist/x86_64-unknown-linux-musl/zerotrace \
+            dist/x86_64-unknown-linux-musl/SHA256SUMS

@@ -1,0 +1,9 @@
+# cargo-audit configuration. Keep in sync with deny.toml [advisories].ignore.
+[advisories]
+# RUSTSEC-2026-0387: see docs/DECISIONS.md ADR-010 (public-input-only use).
+ignore = ["RUSTSEC-2026-0387"]
+informational_warnings = ["unmaintained", "unsound", "notice"]
+
+[output]
+deny = ["warnings"]
+quiet = false

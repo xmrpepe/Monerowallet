@@ -1,0 +1,39 @@
+[package]
+name = "zerotrace-fuzz"
+version = "0.0.0"
+edition = "2024"
+publish = false
+license = "GPL-3.0-only"
+
+[package.metadata]
+cargo-fuzz = true
+
+# Separate workspace: fuzzing needs nightly + libFuzzer.
+[workspace]
+
+[dependencies]
+libfuzzer-sys = "=0.4.13"
+kage-vault = { path = "../crates/kage-vault" }
+kage-airgap = { path = "../crates/kage-airgap" }
+kage-node = { path = "../crates/kage-node" }
+
+[[bin]]
+name = "vault_header"
+path = "fuzz_targets/vault_header.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "airgap_envelope"
+path = "fuzz_targets/airgap_envelope.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "node_host"
+path = "fuzz_targets/node_host.rs"
+test = false
+doc = false
+bench = false

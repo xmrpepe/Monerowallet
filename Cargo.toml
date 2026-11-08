@@ -1,0 +1,99 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/kage-sys",
+    "crates/kage-harden",
+    "crates/kage-vault",
+    "crates/kage-airgap",
+    "crates/kage-signer",
+    "crates/kage-core",
+    "crates/kage-node",
+    "crates/kage-tui",
+    "crates/kage-hw",
+]
+# The fuzz workspace is separate (needs nightly + libfuzzer); see fuzz/.
+exclude = ["fuzz"]
+
+[workspace.package]
+version = "0.0.1"
+edition = "2024"
+rust-version = "1.97"
+license = "GPL-3.0-only"
+repository = "https://github.com/xmrpepe/Monerowallet"
+publish = false
+
+# Every external dependency is pinned to an exact version (`=`). Cargo.lock is
+# committed and every build in CI uses `--locked`. Bumps go through `cargo vet`.
+[workspace.dependencies]
+# Internal crates
+kage-sys = { path = "crates/kage-sys" }
+kage-harden = { path = "crates/kage-harden" }
+kage-vault = { path = "crates/kage-vault" }
+kage-airgap = { path = "crates/kage-airgap" }
+kage-core = { path = "crates/kage-core" }
+kage-node = { path = "crates/kage-node" }
+
+# Monero protocol (ADR-001). Default features only: no networking (verified by
+# scripts/check-signer-deps.sh in CI).
+monero-wallet = { version = "=0.2.0", default-features = true }
+
+# Cryptography: RustCrypto only (ADR-004).
+argon2 = { version = "=0.6.0", default-features = false, features = ["alloc", "zeroize"] }
+chacha20poly1305 = { version = "=0.11.0", default-features = false, features = ["zeroize"] }
+
+# Secrets & randomness
+zeroize = { version = "=1.9.1", features = ["derive"] }
+secrecy = { version = "=0.10.3" }
+getrandom = { version = "=0.4.3" }
+subtle = { version = "=2.6.1" }
+
+# OS interfaces. NOTE: never enable rustix's `net` feature anywhere.
+rustix = { version = "=1.1.6", default-features = false, features = ["std", "mm", "process", "fs", "param"] }
+
+# Errors
+thiserror = { version = "=2.0.21" }
+
+# Dev-only
+proptest = { version = "=1.12.0" }
+tempfile = { version = "=3.27.0" }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+unused_must_use = "deny"
+unreachable_pub = "warn"
+
+[workspace.lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+unwrap_used = "deny"
+expect_used = "warn"
+panic = "warn"
+indexing_slicing = "warn"
+arithmetic_side_effects = "warn"
+dbg_macro = "deny"
+print_stdout = "warn"
+todo = "deny"
+unimplemented = "deny"
+mem_forget = "deny"
+module_name_repetitions = "allow"
+
+[profile.release]
+# Reproducibility + hardening (see docs/REPRODUCIBLE.md).
+codegen-units = 1
+lto = "fat"
+opt-level = 3
+panic = "abort"
+debug = false
+strip = "symbols"
+incremental = false
+overflow-checks = true
+
+[profile.dev]
+overflow-checks = true
+
+# Argon2 is unusably slow unoptimised; tests use real (minimum) parameters.
+[profile.dev.package.argon2]
+opt-level = 3
+[profile.dev.package.blake2]
+opt-level = 3

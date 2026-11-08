@@ -1,0 +1,22 @@
+[package]
+name = "kage-airgap"
+description = "ZeroTrace: air-gap envelope format shared by kage-core and kage-signer. No networking."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+# Mainnet is compile-time disabled until FCMP++/Carrot support is released and
+# reviewed (docs/DECISIONS.md, ADR-002). Enabling this feature is a hard error.
+mainnet = []
+
+[dependencies]
+thiserror.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+
+[lints]
+workspace = true

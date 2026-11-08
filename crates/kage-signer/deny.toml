@@ -1,0 +1,61 @@
+# Strict cargo-deny policy for kage-signer (ADR-012 / T-SIGN-NET).
+# Run as:
+#   cargo deny --manifest-path crates/kage-signer/Cargo.toml \
+#     --config crates/kage-signer/deny.toml check bans
+# This is a DENYLIST. The authoritative control is the ALLOWLIST enforced by
+# scripts/check-signer-deps.sh; this file is the defence-in-depth layer the
+# brief requires.
+
+[graph]
+targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu"]
+all-features = true
+
+[bans]
+multiple-versions = "allow"
+wildcards = "deny"
+allow-wildcard-paths = true
+deny = [
+    # Async runtimes / reactors
+    { crate = "tokio", reason = "signer: no async runtime" },
+    { crate = "async-std", reason = "signer: no async runtime" },
+    { crate = "smol", reason = "signer: no async runtime" },
+    { crate = "async-io", reason = "signer: no async runtime" },
+    { crate = "mio", reason = "signer: no I/O reactor" },
+    { crate = "polling", reason = "signer: no I/O reactor" },
+    { crate = "futures", reason = "signer: no async" },
+    { crate = "futures-util", reason = "signer: no async" },
+    { crate = "futures-io", reason = "signer: no async" },
+    # Sockets / HTTP / TLS / DNS
+    { crate = "socket2", reason = "signer: no sockets" },
+    { crate = "hyper", reason = "signer: no HTTP" },
+    { crate = "h2", reason = "signer: no HTTP" },
+    { crate = "h3", reason = "signer: no HTTP" },
+    { crate = "http", reason = "signer: no HTTP" },
+    { crate = "reqwest", reason = "signer: no HTTP" },
+    { crate = "ureq", reason = "signer: no HTTP" },
+    { crate = "curl", reason = "signer: no HTTP" },
+    { crate = "curl-sys", reason = "signer: no HTTP" },
+    { crate = "isahc", reason = "signer: no HTTP" },
+    { crate = "attohttpc", reason = "signer: no HTTP" },
+    { crate = "simple-request", reason = "signer: no HTTP" },
+    { crate = "monero-simple-request-rpc", reason = "signer: no node RPC" },
+    { crate = "monero-daemon-rpc", reason = "signer: no node RPC" },
+    { crate = "rustls", reason = "signer: no TLS" },
+    { crate = "native-tls", reason = "signer: no TLS" },
+    { crate = "openssl", reason = "signer: no TLS" },
+    { crate = "openssl-sys", reason = "signer: no TLS" },
+    { crate = "trust-dns-resolver", reason = "signer: no DNS" },
+    { crate = "hickory-resolver", reason = "signer: no DNS" },
+    { crate = "hickory-proto", reason = "signer: no DNS" },
+    { crate = "quinn", reason = "signer: no QUIC" },
+    { crate = "zmq", reason = "signer: no message queues" },
+    # Tor
+    { crate = "arti-client", reason = "signer: no Tor" },
+    { crate = "arti", reason = "signer: no Tor" },
+    { crate = "tor-rtcompat", reason = "signer: no Tor" },
+    { crate = "tor-proto", reason = "signer: no Tor" },
+    # Workspace crates that carry networking
+    { crate = "kage-node", reason = "signer must never link node code" },
+    { crate = "kage-tui", reason = "signer is a separate binary" },
+    { crate = "kage-core", reason = "signer must not share code with the online wallet beyond kage-airgap/kage-vault" },
+]

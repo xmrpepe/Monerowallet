@@ -1,7 +1,8 @@
 # ZeroTrace — Stage 1 Research Report
 
-Status: **for review**. Research date: 2026-11-08.
-Nothing in this document is final until the decisions in §7 are answered.
+Status: **accepted**. Research date: 2026-11-08.
+The §7 questions were resolved with the recommended defaults. See
+`docs/DECISIONS.md` (ADR-001 to ADR-004 and ADR-006).
 
 Evidence labels used below:
 - **[verified]**: I checked it myself (crates.io API, `cargo tree`, primary repo/docs).

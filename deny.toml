@@ -1,0 +1,62 @@
+# cargo-deny policy for the whole workspace.
+# The signer has an additional, stricter policy: crates/kage-signer/deny.toml.
+
+[graph]
+# ZeroTrace is Linux-only (ADR-007). Pruning other targets keeps the reviewed
+# dependency set honest.
+targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu"]
+all-features = false
+
+[advisories]
+version = 2
+yanked = "deny"
+unmaintained = "workspace"
+unsound = "all"
+# Any ignore MUST reference an ADR explaining why it is acceptable, and its
+# exit criterion. Reviewed at every dependency bump.
+ignore = [
+    # crypto-bigint 0.5.5 timing variability, pulled in by monero-ed25519 0.1.0.
+    # Only used in Point::biased_hash (hash-to-point) on PUBLIC input (output
+    # keys). Exit: monero-oxide release on crypto-bigint >= 0.7.6. ADR-010.
+    { id = "RUSTSEC-2026-0387", reason = "public-input-only use in monero-ed25519::Point::biased_hash; see docs/DECISIONS.md ADR-010" },
+]
+
+[licenses]
+version = 2
+confidence-threshold = 0.95
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-1-Clause",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "Zlib",
+    "GPL-3.0-only",
+]
+
+[licenses.private]
+ignore = true
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+allow-wildcard-paths = true
+highlight = "all"
+deny = [
+    # No OpenSSL anywhere: TLS (Stage 3, arti) must use rustls.
+    { crate = "openssl", reason = "use rustls (ADR-005)" },
+    { crate = "openssl-sys", reason = "use rustls (ADR-005)" },
+    { crate = "native-tls", reason = "use rustls (ADR-005)" },
+    # Non-OS RNGs must not be used for secrets; we only allow getrandom/OsRng.
+    # (rand itself is a transitive dependency of monero-wallet and is reviewed
+    # there; our own crates are checked by scripts/check-policy.sh.)
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []
