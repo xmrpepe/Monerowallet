@@ -7,13 +7,31 @@ rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 
+[features]
+# TEST-ONLY regtest support (ADR-016).
+regtest = ["kage-airgap/regtest"]
+
 [dependencies]
 kage-airgap.workspace = true
 kage-sys.workspace = true
 kage-vault.workspace = true
 monero-wallet.workspace = true
 zeroize.workspace = true
+rand_core.workspace = true
+getrandom.workspace = true
 thiserror.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+# Differential tests against monerod / monero-wallet-rpc (tests/regtest.rs).
+kage-node = { workspace = true, features = ["regtest"] }
+tokio = { workspace = true, features = ["rt", "macros"] }
+serde_json.workspace = true
+hex = { version = "=0.4.3" }
+
+[[test]]
+name = "regtest"
+required-features = ["regtest"]
 
 [lints]
 workspace = true

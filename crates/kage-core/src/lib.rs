@@ -2,22 +2,36 @@
 //!
 //! **Security-critical. Listed in `AUDIT.md`.**
 //!
-//! Holds the **private view key and public spend key only**. It cannot spend.
-//! It never sees the spend key or seed, and has no code path that accepts one
-//! (the signer's vault content type, `ContentType::SignerSecrets`, is rejected
-//! by `kage-vault` when opened as `ViewWallet`).
+//! Holds the **private view key and public spend key only**, so it cannot
+//! spend. There is no code path that accepts a spend key or seed. The signer's
+//! vault content type (`SignerSecrets`) is rejected when opened as a
+//! `ViewWallet`.
 //!
-//! Stage 3 scope (stagenet only, ADR-002):
-//! - chain scanning via [`monero_wallet`] (ADR-001), fed blocks by `kage-node`
-//!   through a trait defined here, so this crate stays network-free;
-//! - balances, including key-image import from the signer. Before FCMP++ a
-//!   view-only wallet cannot see its own spends without key images (§2 of
-//!   `docs/RESEARCH.md`);
-//! - subaddress derivation and bookkeeping;
-//! - output selection and **unsigned** transaction construction, with decoy
-//!   selection delegated to `monero-wallet` and differentially tested against
-//!   `monero-wallet-rpc` on stagenet.
+//! - [`keys`]: view-only keys, verified against the primary address.
+//! - [`sync`]: scanning with reorg handling, local RingCT index verification,
+//!   and **private spend detection** by ring appearances (no key image is ever
+//!   sent to the node).
+//! - [`balance`]: wallet2-compatible spendability rules.
+//! - [`intent`]: unsigned transaction intents for the signer (ADR-019).
+//! - [`codec`] / [`wallet`]: the encrypted wallet file.
+//!
+//! This crate performs no I/O beyond its own wallet file. Chain data arrives
+//! through the `monero-interface` traits, which `kage-node` implements.
 
 #![forbid(unsafe_code)]
 
+pub mod balance;
+pub mod codec;
+pub mod intent;
+pub mod keys;
+pub mod state;
+pub mod subaddr;
+pub mod sync;
+pub mod wallet;
+
 pub use kage_airgap::Network;
+pub use kage_airgap::payload;
+pub use monero_wallet;
+
+#[cfg(test)]
+mod tests;

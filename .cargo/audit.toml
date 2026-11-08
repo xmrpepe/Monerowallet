@@ -1,9 +1,14 @@
 # cargo-audit configuration. Keep in sync with deny.toml [advisories].ignore.
 [advisories]
 # RUSTSEC-2026-0387: see docs/DECISIONS.md ADR-010 (public-input-only use).
-ignore = ["RUSTSEC-2026-0387"]
+# RUSTSEC-2023-0071: see docs/DECISIONS.md ADR-018 (arti client: RSA verify only).
+ignore = ["RUSTSEC-2026-0387", "RUSTSEC-2023-0071"]
 informational_warnings = ["unmaintained", "unsound", "notice"]
 
 [output]
-deny = ["warnings"]
+# Vulnerabilities always fail. Also fail on unsound and yanked crates.
+# "Unmaintained" for *transitive* crates (currently bincode, paste via arti) is
+# reported but not fatal; cargo-deny (`unmaintained = "workspace"`) fails on
+# unmaintained crates we depend on directly. Reviewed at each dependency bump.
+deny = ["unsound", "yanked"]
 quiet = false

@@ -45,10 +45,28 @@ chacha20poly1305 = { version = "=0.11.0", default-features = false, features = [
 zeroize = { version = "=1.9.1", features = ["derive"] }
 secrecy = { version = "=0.10.3" }
 getrandom = { version = "=0.4.3" }
+# OS CSPRNG as a `CryptoRng` for monero-wallet APIs (rand_core 0.6 = what it uses).
+rand_core = { version = "=0.6.4", features = ["getrandom"] }
 subtle = { version = "=2.6.1" }
 
 # OS interfaces. NOTE: never enable rustix's `net` feature anywhere.
-rustix = { version = "=1.1.6", default-features = false, features = ["std", "mm", "process", "fs", "param"] }
+rustix = { version = "=1.1.5", default-features = false, features = ["std", "mm", "process", "fs", "param"] }
+
+# Monero node RPC (kage-node only). Transport is our own (kage-node::transport).
+monero-daemon-rpc = { version = "=0.2.0", default-features = false, features = ["std"] }
+monero-interface = { version = "=0.2.0" }
+
+# Networking (kage-node only; banned from the signer, ADR-012).
+tokio = { version = "=1.54.1", default-features = false, features = ["rt", "rt-multi-thread", "net", "time", "io-util", "sync", "macros"] }
+hyper = { version = "=1.12.0", default-features = false, features = ["client", "http1"] }
+hyper-util = { version = "=0.1.21", default-features = false, features = ["tokio"] }
+http-body-util = { version = "=0.1.5" }
+http = { version = "=1.5.0" }
+bytes = { version = "=1.12.1" }
+serde_json = { version = "=1.0.154" }
+# Tor. No native-tls/OpenSSL (ADR-005); static sqlite for the static release build.
+tor-rtcompat = { version = "=0.47.0", default-features = false, features = ["tokio", "rustls"] }
+arti-client = { version = "=0.47.0", default-features = false, features = ["tokio", "rustls", "compression", "onion-service-client", "static-sqlite"] }
 
 # Errors
 thiserror = { version = "=2.0.21" }
@@ -92,8 +110,8 @@ overflow-checks = true
 [profile.dev]
 overflow-checks = true
 
-# Argon2 is unusably slow unoptimised; tests use real (minimum) parameters.
-[profile.dev.package.argon2]
-opt-level = 3
-[profile.dev.package.blake2]
+# Optimise all third-party code in dev/test builds: Argon2 and curve
+# arithmetic (scanning, decoys) are unusably slow unoptimised. Our own crates
+# stay at opt-level 0 with overflow checks for debugging.
+[profile.dev.package."*"]
 opt-level = 3

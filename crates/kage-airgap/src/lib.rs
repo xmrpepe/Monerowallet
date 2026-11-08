@@ -17,6 +17,8 @@
 
 #![forbid(unsafe_code)]
 
+pub mod payload;
+
 #[cfg(feature = "mainnet")]
 compile_error!(
     "Mainnet is disabled until FCMP++/Carrot support is released in monero-oxide and \
@@ -42,21 +44,81 @@ pub enum Network {
     Testnet,
     /// Stagenet (default for development and integration tests).
     Stagenet,
+    /// TEST-ONLY local regtest chain (ADR-016). Uses mainnet address
+    /// encoding; only available with the `regtest` feature.
+    #[cfg(feature = "regtest")]
+    Regtest,
 }
 
+/// Wire value for regtest (test builds only).
+#[cfg(feature = "regtest")]
+const NET_REGTEST: u8 = 0xF0;
+
 impl Network {
+    /// Wire value (also used in `kage-core`'s wallet file).
+    #[must_use]
+    pub fn to_wire(self) -> u8 {
+        self.to_u8()
+    }
+
+    /// Parses a wire value. Mainnet is rejected (ADR-002).
+    ///
+    /// # Errors
+    /// Unknown or disabled network.
+    pub fn from_wire(v: u8) -> Result<Self, EnvelopeError> {
+        Self::from_u8(v)
+    }
+
     fn to_u8(self) -> u8 {
         match self {
             Self::Testnet => 2,
             Self::Stagenet => 3,
+            #[cfg(feature = "regtest")]
+            Self::Regtest => NET_REGTEST,
         }
     }
     fn from_u8(v: u8) -> Result<Self, EnvelopeError> {
         match v {
             2 => Ok(Self::Testnet),
             3 => Ok(Self::Stagenet),
+            #[cfg(feature = "regtest")]
+            NET_REGTEST => Ok(Self::Regtest),
             NET_MAINNET => Err(EnvelopeError::MainnetDisabled),
             other => Err(EnvelopeError::UnknownNetwork(other)),
+        }
+    }
+
+    /// The `nettype` string `monerod` reports in `get_info` for this network.
+    #[must_use]
+    pub fn daemon_nettype(self) -> &'static str {
+        match self {
+            Self::Testnet => "testnet",
+            Self::Stagenet => "stagenet",
+            #[cfg(feature = "regtest")]
+            Self::Regtest => "fakechain",
+        }
+    }
+
+    /// The address encoding this network uses. Regtest (test builds only)
+    /// uses mainnet encoding: that is how `monerod --regtest` works.
+    #[must_use]
+    pub fn address_network(self) -> monero_wallet::address::Network {
+        match self {
+            Self::Testnet => monero_wallet::address::Network::Testnet,
+            Self::Stagenet => monero_wallet::address::Network::Stagenet,
+            #[cfg(feature = "regtest")]
+            Self::Regtest => monero_wallet::address::Network::Mainnet,
+        }
+    }
+
+    /// Human-readable name.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Testnet => "testnet",
+            Self::Stagenet => "stagenet",
+            #[cfg(feature = "regtest")]
+            Self::Regtest => "regtest",
         }
     }
 }

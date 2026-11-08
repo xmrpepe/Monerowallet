@@ -11,8 +11,15 @@ publish.workspace = true
 # Mainnet is compile-time disabled until FCMP++/Carrot support is released and
 # reviewed (docs/DECISIONS.md, ADR-002). Enabling this feature is a hard error.
 mainnet = []
+# TEST-ONLY: a private local regtest chain (ADR-016). Regtest uses MAINNET
+# address encoding, so it is never enabled in release builds
+# (scripts/check-policy.sh), and kage-node refuses a regtest connection unless
+# the daemon reports `nettype == "fakechain"` on a loopback address.
+regtest = []
 
 [dependencies]
+monero-wallet.workspace = true
+zeroize.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]

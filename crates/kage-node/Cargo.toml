@@ -7,8 +7,31 @@ rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 
+[features]
+default = ["tor"]
+# Embedded Tor client (arti). On by default; the policy (ADR-005) requires it
+# for every non-local node.
+tor = ["dep:arti-client", "dep:tor-rtcompat"]
+# TEST-ONLY regtest support (ADR-016).
+regtest = ["kage-airgap/regtest"]
+
 [dependencies]
+kage-airgap.workspace = true
+monero-daemon-rpc.workspace = true
+monero-interface.workspace = true
+tokio.workspace = true
+hyper.workspace = true
+hyper-util.workspace = true
+http-body-util.workspace = true
+http.workspace = true
+bytes.workspace = true
+serde_json.workspace = true
 thiserror.workspace = true
+arti-client = { workspace = true, optional = true }
+tor-rtcompat = { workspace = true, optional = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "macros", "net", "io-util"] }
 
 [lints]
 workspace = true
